@@ -480,13 +480,16 @@ endrem
 	End Method
 
 	Method OnDeviceReset(d3ddev:IDirect3DDevice9)
-		d3ddev.CreateTexture(_persistPixmap.width, _persistPixmap.height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, _texture, Null)
-		If _texture 
-			_texture.GetSurfaceLevel(0, _surface)
+		If(_persistpixmap)
+			d3ddev.CreateTexture(_persistPixmap.width, _persistPixmap.height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, _texture, Null)
+			If _texture 
+				_texture.GetSurfaceLevel(0, _surface)
+			EndIf
+
+			FromPixmap(d3ddev, _persistPixmap)
 		EndIf
 
-		FromPixmap(d3ddev, _persistPixmap)
-'		_persistPixmap = Null
+		_persistPixmap = Null
 	End Method
 	
 	Method FromPixmap(d3ddev:IDirect3DDevice9, pixmap:TPixmap)
@@ -519,9 +522,8 @@ endrem
 		Local stage:IDirect3DSurface9
 		d3ddev.CreateOffscreenPlainSurface(width, height, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM, stage, Null)
 
-		Local result:Int
-		result = d3ddev.GetRenderTargetData(_surface, stage)
-		If result < 0 'and 1 = 2 
+		Local result:Int = d3ddev.GetRenderTargetData(_surface, stage)
+		If result < 0
 			If result = D3DERR_DRIVERINTERNALERROR
 				Throw "TD3D9RenderImageFrame:ToPixmap:GetRenderTargetData failed: D3DERR_DRIVERINTERNALERROR"
 			ElseIf result = D3DERR_DEVICELOST
@@ -532,7 +534,6 @@ endrem
 				Throw "TD3D9RenderImageFrame:ToPixmap:GetRenderTargetData failed."
 			EndIf
 		EndIf
-
 
 		' copy the pixel data across
 		Local lockedrect:D3DLOCKED_RECT = New D3DLOCKED_RECT
@@ -624,12 +625,11 @@ Type TD3D9RenderImage Extends TRenderImage
 		'  clear the new render target surface
 		Local prevsurf:IDirect3DSurface9
 		Local prevmatrix:Float[16]
+		Local prevviewport:D3DVIEWPORT9 = New D3DVIEWPORT9
 		
 		' get previous
 		_d3ddev.GetRenderTarget(0, prevsurf)
 		_d3ddev.GetTransform(D3DTS_PROJECTION, prevmatrix)
-
-		Local prevviewport:D3DVIEWPORT9 = New D3DVIEWPORT9
 		_d3ddev.GetViewport(prevviewport)
 
 		' set and clear
@@ -698,6 +698,18 @@ Type TD3D9RenderImage Extends TRenderImage
 	End Method
 	
 	Method SetViewport(x:Int, y:Int, width:Int, height:Int)
+		If width = 0
+			width = Self.width
+			height = Self.height
+		EndIf
+
+		If x + width > Self.width
+			width:-(x + width - Self.width)
+		EndIf
+		If y + height > Self.height
+			height:-(y + height - Self.height)
+		EndIf
+
 		If x = 0 And y = 0 And width = Self.width And height = Self.height
 			_d3ddev.SetRenderState(D3DRS_SCISSORTESTENABLE, False)
 		Else
