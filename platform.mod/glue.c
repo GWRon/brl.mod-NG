@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2019-2020 Bruce A Henderson
+ Copyright (c) 2019-2023 Bruce A Henderson
 
  This software is provided 'as-is', without any express or implied
  warranty. In no event will the authors be held liable for any damages
@@ -21,21 +21,11 @@
     distribution.
 */
 #include <unistd.h>
-#ifdef __APPLE__
-#include <sys/sysctl.h>
-#endif
 
 int bmx_os_getproccount() {
 	int procCount = 0;
 
-#ifdef __APPLE__
-	uint32_t cpuCount;
-	int name[2] = { CTL_HW, HW_NCPU };
-
-	size_t size = sizeof(cpuCount);
-
-	int res = sysctl(name, 2, &cpuCount, &size, NULL, 0);
-#elif defined(_ARM_) || defined(_ARM64_)
+#if defined(_ARM_) || defined(_ARM64_)
 	procCount = sysconf(_SC_NPROCESSORS_CONF);
 #else
 	procCount = sysconf(_SC_NPROCESSORS_ONLN);
@@ -44,3 +34,12 @@ int bmx_os_getproccount() {
 	return procCount;
 }
 
+int bmx_os_getphysproccount() {
+    int procCount = 0;
+#if defined(_ARM_) || defined(_ARM64_)
+	procCount = sysconf(_SC_NPROCESSORS_CONF);
+#else
+	procCount = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+    return procCount;
+}
